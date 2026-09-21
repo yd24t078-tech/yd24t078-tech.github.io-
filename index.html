@@ -2,171 +2,208 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>웹 지뢰찾기</title>
+    <title>웹 벽돌깨기</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
-        #info { margin: 20px; font-size: 18px; font-weight: bold; }
-        #board { display: inline-grid; gap: 2px; padding: 10px; background: #bbb; border: 3px solid #777; }
-        .cell { width: 30px; height: 30px; background: #ddd; border: 1px solid #fff; box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #999; text-align: center; line-height: 30px; font-weight: bold; cursor: pointer; user-select: none; }
-        .cell.open { background: #eee; border: 1px solid #ccc; box-shadow: none; }
-        .cell.mine { background: red; }
-        .cell.flag { background: #ffeb3b; }
-        /* 숫자별 색상 설정 */
-        .c1 { color: blue; } .c2 { color: green; } .c3 { color: red; } .c4 { color: darkblue; }
+        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; margin: 0; padding: 20px; }
+        canvas { background: #111; display: block; margin: 20px auto; border: 4px solid #fff; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        #info { font-size: 18px; margin-bottom: 10px; }
+        .score-board { display: flex; justify-content: center; gap: 40px; font-size: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>💣 클래식 지뢰찾기 💣</h1>
-    <div id="info">좌클릭: 열기 / 우클릭: 깃발 | <span id="status">게임 중...</span></div>
-    <div id="board"></div>
+    <h1>🧱 클래식 벽돌깨기 🧱</h1>
+    <div id="info">마우스를 움직이거나 좌우 방향키(◀ ▶)로 패들을 조종하세요.</div>
+    <div class="score-board">
+        <div>점수: <span id="score">0</span></div>
+        <div>목숨: <span id="lives">3</span></div>
+    </div>
+    
+    <canvas id="gameCanvas" width="480" height="320"></canvas>
 
 <script>
-const SIZE = 10;
-const MINE_COUNT = 15;
-let boardData = [];
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// 1. 게임 오브젝트 설정
+// 공 (Ball)
+let ballRadius = 8;
+let x = canvas.width / 2;
+let y = canvas.height - 30;
+let dx = 3;
+let dy = -3;
+
+// 패들 (Paddle)
+let paddleHeight = 10;
+let paddleWidth = 75;
+let paddleX = (canvas.width - paddleWidth) / 2;
+let rightPressed = false;
+let leftPressed = false;
+
+// 벽돌 (Bricks)
+let brickRowCount = 3;
+let brickColumnCount = 5;
+let brickWidth = 75;
+let brickHeight = 20;
+let brickPadding = 10;
+let brickOffsetTop = 30;
+let brickOffsetLeft = 30;
+
+let bricks = [];
+for (let c = 0; c < brickColumnCount; c++) {
+    bricks[c] = [];
+    for (let r = 0; r < brickRowCount; r++) {
+        bricks[c][r] = { x: 0, y: 0, status: 1 };
+    }
+}
+
+// 점수 및 목숨
+let score = 0;
+let lives = 3;
 let gameOver = false;
-let revealedCount = 0;
 
-const boardElement = document.getElementById('board');
-const statusElement = document.getElementById('status');
+// 2. 이벤트 리스너 (키보드 및 마우스 제어)
+document.addEventListener("keydown", keyDownHandler, false);
+document.addEventListener("keyup", keyUpHandler, false);
+document.addEventListener("mousemove", mouseMoveHandler, false);
 
-// 1. 보드 배열 및 지뢰 무작위 초기화
-function initBoard() {
-    boardElement.style.gridTemplateColumns = `repeat(${SIZE}, 30px)`;
-    
-    // 빈 칸 세팅
-    for (let r = 0; r < SIZE; r++) {
-        boardData[r] = [];
-        for (let c = 0; c < SIZE; c++) {
-            boardData[r][c] = { r, c, isMine: false, count: 0, isOpen: false, isFlag: false };
-        }
+function keyDownHandler(e) {
+    if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
+    else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
+}
+
+function keyUpHandler(e) {
+    if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
+    else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
+}
+
+function mouseMoveHandler(e) {
+    let relativeX = e.clientX - canvas.offsetLeft;
+    if (relativeX > 0 && relativeX < canvas.width) {
+        paddleX = relativeX - paddleWidth / 2;
     }
+}
 
-    // 지뢰 심기
-    let minesPlaced = 0;
-    while (minesPlaced < MINE_COUNT) {
-        let r = Math.floor(Math.random() * SIZE);
-        let c = Math.floor(Math.random() * SIZE);
-        if (!boardData[r][c].isMine) {
-            boardData[r][c].isMine = true;
-            minesPlaced++;
-        }
-    }
-
-    // 주변 지뢰 개수 계산
-    for (let r = 0; r < SIZE; r++) {
-        for (let c = 0; c < SIZE; c++) {
-            if (boardData[r][c].isMine) continue;
-            let count = 0;
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dc = -1; dc <= 1; dc++) {
-                    if (boardData[r + dr] && boardData[r + dr][c + dc] && boardData[r + dr][c + dc].isMine) {
-                        count++;
+// 3. 충돌 감지 함수
+function collisionDetection() {
+    for (let c = 0; c < brickColumnCount; c++) {
+        for (let r = 0; r < brickRowCount; r++) {
+            let b = bricks[c][r];
+            if (b.status === 1) {
+                // 공이 벽돌 범위 안에 들어왔을 때
+                if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+                    dy = -dy;
+                    b.status = 0; // 벽돌 깨짐
+                    score++;
+                    document.getElementById("score").innerText = score;
+                    
+                    // 모든 벽돌을 다 깼을 때 승리
+                    if (score === brickRowCount * brickColumnCount) {
+                        alert("🎉 축하합니다! 모든 벽돌을 깨뜨려 승리하셨습니다! 🎉");
+                        document.location.reload();
+                        gameOver = true;
                     }
                 }
             }
-            boardData[r][c].count = count;
-        }
-    }
-
-    // HTML 화면 그리기
-    for (let r = 0; r < SIZE; r++) {
-        for (let c = 0; c < SIZE; c++) {
-            const cell = document.createElement('div');
-            cell.classList.add('cell');
-            cell.dataset.row = r;
-            cell.dataset.col = c;
-            
-            // 좌클릭: 칸 열기
-            cell.addEventListener('click', () => openCell(r, c));
-            // 우클릭: 깃발 꽂기
-            cell.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                toggleFlag(r, c);
-            });
-
-            boardElement.appendChild(cell);
-            boardData[r][c].element = cell;
         }
     }
 }
 
-// 2. 칸 열기 함수 (빈 칸일 경우 주변 자동 확장 포함)
-function openCell(r, c) {
-    if (gameOver) return;
-    let cell = boardData[r][c];
-    if (cell.isOpen || cell.isFlag) return;
-
-    cell.isOpen = true;
-    cell.element.classList.add('open');
-
-    if (cell.isMine) {
-        cell.element.classList.add('mine');
-        cell.element.innerText = '💣';
-        endGame(false);
-        return;
-    }
-
-    revealedCount++;
-    if (cell.count > 0) {
-        cell.element.innerText = cell.count;
-        cell.element.classList.add(`c${cell.count}`);
-    } else {
-        // 0인 경우 주변 8칸 자동 재귀 탐색
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                if (boardData[r + dr] && boardData[r + dr][c + dc]) {
-                    openCell(r + dr, c + dc);
-                }
-            }
-        }
-    }
-
-    // 승리 조건 체크
-    if (revealedCount === (SIZE * SIZE) - MINE_COUNT) {
-        endGame(true);
-    }
+// 4. 화면 그리기 기능들
+function drawBall() {
+    ctx.beginPath();
+    ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+    ctx.fillStyle = "#0095DD";
+    ctx.fill();
+    ctx.closePath();
 }
 
-// 3. 깃발 토글 함수
-function toggleFlag(r, c) {
-    if (gameOver) return;
-    let cell = boardData[r][c];
-    if (cell.isOpen) return;
-
-    cell.isFlag = !cell.isFlag;
-    if (cell.isFlag) {
-        cell.element.classList.add('flag');
-        cell.element.innerText = '🚩';
-    } else {
-        cell.element.classList.remove('flag');
-        cell.element.innerText = '';
-    }
+function drawPaddle() {
+    ctx.beginPath();
+    ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+    ctx.fillStyle = "#0095DD";
+    ctx.fill();
+    ctx.closePath();
 }
 
-// 4. 게임 종료 처리
-function endGame(isWin) {
-    gameOver = true;
-    if (isWin) {
-        statusElement.innerText = "🎉 축하합니다! 승리하셨습니다! 🎉";
-        statusElement.style.color = "blue";
-    } else {
-        statusElement.innerText = "💥 쾅! 지뢰를 밟았습니다. 게임 오버! 💥";
-        statusElement.style.color = "red";
-        // 모든 지뢰 공개
-        for (let r = 0; r < SIZE; r++) {
-            for (let c = 0; c < SIZE; c++) {
-                if (boardData[r][c].isMine) {
-                    boardData[r][c].element.classList.add('mine');
-                    boardData[r][c].element.innerText = '💣';
-                }
+function drawBricks() {
+    for (let c = 0; c < brickColumnCount; c++) {
+        for (let r = 0; r < brickRowCount; r++) {
+            if (bricks[c][r].status === 1) {
+                let brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
+                let brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
+                bricks[c][r].x = brickX;
+                bricks[c][r].y = brickY;
+                ctx.beginPath();
+                ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                // 줄별로 다른 색상 부여
+                ctx.fillStyle = r === 0 ? "#ff4757" : r === 1 ? "#ffa502" : "#2ed573";
+                ctx.fill();
+                ctx.closePath();
             }
         }
     }
 }
 
-initBoard();
+// 5. 메인 게임 루프 함수
+function draw() {
+    if (gameOver) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // 이전 프레임 지우기
+    drawBricks();
+    drawBall();
+    drawPaddle();
+    collisionDetection();
+
+    // 벽 충돌 감지 (좌/우)
+    if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+        dx = -dx;
+    }
+    // 벽 충돌 감지 (위)
+    if (y + dy < ballRadius) {
+        dy = -dy;
+    } 
+    // 바닥 충돌 감지
+    else if (y + dy > canvas.height - ballRadius) {
+        // 패들에 튕겼을 때
+        if (x > paddleX && x < paddleX + paddleWidth) {
+            dy = -dy;
+        } 
+        // 패들을 놓쳐서 바닥에 닿았을 때
+        else {
+            lives--;
+            document.getElementById("lives").innerText = lives;
+            if (!lives) {
+                alert("💥 게임 오버! 기회를 모두 잃었습니다. 💥");
+                document.location.reload();
+                gameOver = true;
+            } else {
+                // 공 위치 및 속도 초기화
+                x = canvas.width / 2;
+                y = canvas.height - 30;
+                dx = 3;
+                dy = -3;
+                paddleX = (canvas.width - paddleWidth) / 2;
+            }
+        }
+    }
+
+    // 패들 키보드 이동 제어
+    if (rightPressed && paddleX < canvas.width - paddleWidth) {
+        paddleX += 5;
+    } else if (leftPressed && paddleX > 0) {
+        paddleX -= 5;
+    }
+
+    // 공 이동
+    x += dx;
+    y += dy;
+
+    requestAnimationFrame(draw);
+}
+
+// 게임 시작
+draw();
 </script>
 </body>
 </html>
