@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>웹 지뢰찾기</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f0f0f0; }
+        #info { margin: 20px; font-size: 18px; font-weight: bold; }
+        #board { display: inline-grid; gap: 2px; padding: 10px; background: #bbb; border: 3px solid #777; }
+        .cell { width: 30px; height: 30px; background: #ddd; border: 1px solid #fff; box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #999; text-align: center; line-height: 30px; font-weight: bold; cursor: pointer; user-select: none; }
+        .cell.open { background: #eee; border: 1px solid #ccc; box-shadow: none; }
+        .cell.mine { background: red; }
+        .cell.flag { background: #ffeb3b; }
+        /* 숫자별 색상 설정 */
+        .c1 { color: blue; } .c2 { color: green; } .c3 { color: red; } .c4 { color: darkblue; }
+    </style>
+</head>
+<body>
+
+    <h1>💣 클래식 지뢰찾기 💣</h1>
+    <div id="info">좌클릭: 열기 / 우클릭: 깃발 | <span id="status">게임 중...</span></div>
+    <div id="board"></div>
+
+<script>
+const SIZE = 10;
+const MINE_COUNT = 15;
+let boardData = [];
+let gameOver = false;
+let revealedCount = 0;
+
+const boardElement = document.getElementById('board');
+const statusElement = document.getElementById('status');
+
+// 1. 보드 배열 및 지뢰 무작위 초기화
+function initBoard() {
+    boardElement.style.gridTemplateColumns = `repeat(${SIZE}, 30px)`;
+    
+    // 빈 칸 세팅
+    for (let r = 0; r < SIZE; r++) {
+        boardData[r] = [];
+        for (let c = 0; c < SIZE; c++) {
+            boardData[r][c] = { r, c, isMine: false, count: 0, isOpen: false, isFlag: false };
+        }
+    }
+
+    // 지뢰 심기
+    let minesPlaced = 0;
+    while (minesPlaced < MINE_COUNT) {
+        let r = Math.floor(Math.random() * SIZE);
+        let c = Math.floor(Math.random() * SIZE);
+        if (!boardData[r][c].isMine) {
+            boardData[r][c].isMine = true;
+            minesPlaced++;
+        }
+    }
+
+    // 주변 지뢰 개수 계산
+    for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+            if (boardData[r][c].isMine) continue;
+            let count = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+                for (let dc = -1; dc <= 1; dc++) {
+                    if (boardData[r + dr] && boardData[r + dr][c + dc] && boardData[r + dr][c + dc].isMine) {
+                        count++;
+                    }
+                }
+            }
+            boardData[r][c].count = count;
+        }
+    }
+
+    // HTML 화면 그리기
+    for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.row = r;
+            cell.dataset.col = c;
+            
+            // 좌클릭: 칸 열기
+            cell.addEventListener('click', () => openCell(r, c));
+            // 우클릭: 깃발 꽂기
+            cell.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                toggleFlag(r, c);
+            });
+
+            boardElement.appendChild(cell);
+            boardData[r][c].element = cell;
+        }
+    }
+}
+
+// 2. 칸 열기 함수 (빈 칸일 경우 주변 자동 확장 포함)
+function openCell(r, c) {
+    if (gameOver) return;
+    let cell = boardData[r][c];
+    if (cell.isOpen || cell.isFlag) return;
+
+    cell.isOpen = true;
+    cell.element.classList.add('open');
+
+    if (cell.isMine) {
+        cell.element.classList.add('mine');
+        cell.element.innerText = '💣';
+        endGame(false);
+        return;
+    }
+
+    revealedCount++;
+    if (cell.count > 0) {
+        cell.element.innerText = cell.count;
+        cell.element.classList.add(`c${cell.count}`);
+    } else {
+        // 0인 경우 주변 8칸 자동 재귀 탐색
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                if (boardData[r + dr] && boardData[r + dr][c + dc]) {
+                    openCell(r + dr, c + dc);
+                }
+            }
+        }
+    }
+
+    // 승리 조건 체크
+    if (revealedCount === (SIZE * SIZE) - MINE_COUNT) {
+        endGame(true);
+    }
+}
+
+// 3. 깃발 토글 함수
+function toggleFlag(r, c) {
+    if (gameOver) return;
+    let cell = boardData[r][c];
+    if (cell.isOpen) return;
+
+    cell.isFlag = !cell.isFlag;
+    if (cell.isFlag) {
+        cell.element.classList.add('flag');
+        cell.element.innerText = '🚩';
+    } else {
+        cell.element.classList.remove('flag');
+        cell.element.innerText = '';
+    }
+}
+
+// 4. 게임 종료 처리
+function endGame(isWin) {
+    gameOver = true;
+    if (isWin) {
+        statusElement.innerText = "🎉 축하합니다! 승리하셨습니다! 🎉";
+        statusElement.style.color = "blue";
+    } else {
+        statusElement.innerText = "💥 쾅! 지뢰를 밟았습니다. 게임 오버! 💥";
+        statusElement.style.color = "red";
+        // 모든 지뢰 공개
+        for (let r = 0; r < SIZE; r++) {
+            for (let c = 0; c < SIZE; c++) {
+                if (boardData[r][c].isMine) {
+                    boardData[r][c].element.classList.add('mine');
+                    boardData[r][c].element.innerText = '💣';
+                }
+            }
+        }
+    }
+}
+
+initBoard();
+</script>
+</body>
+</html>
