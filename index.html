@@ -34,7 +34,7 @@
             pointer-events: none;
         }
 
-        /* 전체 글자 컨테이너 (5초 무한 반복) */
+        /* 전체 글자 컨테이너 (6초 무한 반복) */
         .text-container {
             font-size: 5rem;
             font-weight: bold;
@@ -45,7 +45,7 @@
 
         .char {
             opacity: 0;
-            animation: fadeInOut 5s infinite;
+            animation: fadeInOut 6s infinite;
         }
 
         .char.space {
@@ -54,7 +54,7 @@
             width: 30px; 
         }
 
-        /* 자막 글자 등장 타이밍 조정 */
+        /* 자막 글자 등장 스케줄 */
         .char:nth-child(1) { animation-delay: 0.0s; } /* 성 */
         .char:nth-child(2) { animation-delay: 0.4s; } /* 욱 */
         .char:nth-child(3) { animation-delay: 0.8s; } /* 아 */
@@ -62,15 +62,18 @@
         .char:nth-child(6) { animation-delay: 1.6s; } /* 니 */
         .char:nth-child(7) { animation-delay: 2.0s; } /* 엄 */
         .char:nth-child(8) { animation-delay: 2.4s; } /* 마 */
+        .char:nth-child(10) { animation-delay: 3.0s; } /* 헤 */
+        .char:nth-child(11) { animation-delay: 3.4s; } /* 헤 */
+        .char:nth-child(12) { animation-delay: 3.8s; } /* 헤 */
 
         @keyframes fadeInOut {
             0% { opacity: 0; transform: translateY(10px); }
             10% { opacity: 1; transform: translateY(0); }
-            70% { opacity: 1; transform: translateY(0); }
-            80%, 100% { opacity: 0; transform: translateY(-10px); }
+            75% { opacity: 1; transform: translateY(0); }
+            85%, 100% { opacity: 0; transform: translateY(-10px); }
         }
 
-        /* [왼쪽 아래] 못생긴 점박이 캐릭터 (입 크기가 음성 소리에 맞춰 상호작용) */
+        /* [왼쪽 아래] 못생긴 점박이 캐릭터 */
         .monster {
             position: absolute;
             left: 40px;
@@ -103,7 +106,7 @@
         .spot2 { width: 10px; height: 14px; top: 70px; left: 20px; }
         .spot3 { width: 16px; height: 12px; top: 50px; right: 15px; }
         
-        /* 캐릭터의 입 (기본 닫힘 상태, 자바스크립트로 제어) */
+        /* 캐릭터의 입 */
         .mouth {
             position: absolute;
             background-color: #551a1a;
@@ -168,7 +171,7 @@
 </head>
 <body>
 
-    <div class="audio-notice">⚠️ 화면을 클릭하면 드럼 소리와 꼬맹이 목소리가 시작됩니다!</div>
+    <div class="audio-notice">⚠️ 화면을 클릭하면 드럼 비트와 "엉우가이어엄므아" 목소리가 나옵니다!</div>
 
     <!-- 자막 영역 -->
     <div class="text-container">
@@ -180,6 +183,10 @@
         <span class="char">니</span>
         <span class="char">엄</span>
         <span class="char">마</span>
+        <span class="char space"></span>
+        <span class="char">헤</span>
+        <span class="char">헤</span>
+        <span class="char">헤</span>
     </div>
 
     <!-- 못생긴 점박이 캐릭터 -->
@@ -206,85 +213,75 @@
     </div>
 
     <script>
-        // 1. 드럼 오디오 설정
-        const snareAudio = new Audio("https://freesound.org");
+        let audioCtx = null;
         let drumInterval = null;
         let mainLoopInterval = null;
 
-        // 2. 캐릭터 TTS 목소리 및 뻐끔 설정 함수
         const mouth = document.getElementById('mouth');
         const monster = document.getElementById('monster');
 
-        function speakCuteVoice(text) {
-            if (!('speechSynthesis' in window)) return;
-
-            // 기존 말하고 있는 음성은 즉시 정지
-            window.speechSynthesis.cancel();
-
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'ko-KR';
+        // [중요 변경] 오류 가능성을 완벽히 제거한 초간단 비프음 합성 드럼 타격 효과
+        function playSnareBeep() {
+            if (!audioCtx) return;
             
-            // 코맹맹이 귀여운 하이피치 효과 조절
-            utterance.pitch = 1.8;  // 피치를 높게 설정해 아기/꼬맹이 목소리 유도 (0.0 ~ 2.0 가능)
-            utterance.rate = 1.1;   // 약간 빠르게 조잘거리듯 발음
-            utterance.volume = 1.0;
+            try {
+                const now = audioCtx.currentTime;
 
-            // 글자 읽는 타이밍에 실시간으로 입 뻐끔거리기 연동
-            utterance.onboundary = function(event) {
-                if (event.name === 'word' || event.name === 'char') {
-                    // 입을 열고 캐릭터 몸을 살짝 들썩이게 연출
-                    mouth.style.height = '24px';
-                    mouth.style.borderRadius = '30% 30% 50% 50%';
-                    monster.style.transform = 'scale(1.05)';
-                    
-                    setTimeout(() => {
-                        mouth.style.height = '6px';
-                        mouth.style.borderRadius = '50%';
-                        monster.style.transform = 'scale(1)';
-                    }, 150);
-                }
-            };
-
-            // 발화가 끝났을 때 완전히 묵념
-            utterance.onend = function() {
-                mouth.style.height = '6px';
-                mouth.style.borderRadius = '50%';
-                monster.style.transform = 'scale(1)';
-            };
-
-            window.speechSynthesis.speak(utterance);
-        }
-
-        // 전체 5초 서클에 맞춰 자막 시작과 동시에 목소리 발생 트리거
-        function startMainAnimationLoop() {
-            // 즉시 첫 음성 실행 후 5초 주기로 반복
-            speakCuteVoice("성욱아! 니엄마");
-            
-            mainLoopInterval = setInterval(() => {
-                speakCuteVoice("성욱아! 니엄마");
-            }, 5000); // 5초 간격 자막 루프와 완전 동기화
-        }
-
-        function startDrumming() {
-            if (drumInterval) return;
-            drumInterval = setInterval(() => {
-                snareAudio.currentTime = 0;
-                snareAudio.play().catch(e => console.log("드럼 오디오 대기"));
-            }, 500); // 60 BPM 루프
-        }
-
-        // 브라우저 화면 클릭 시 전체 락 해제 및 동시 재생 시작
-        let isStarted = false;
-        window.addEventListener('click', () => {
-            if (!isStarted) {
-                startDrumming();
-                startMainAnimationLoop();
+                // 1. 드럼통 울림 (낮은 둥 소리)
+                const oscLow = audioCtx.createOscillator();
+                const gainLow = audioCtx.createGain();
+                oscLow.type = 'triangle';
+                oscLow.frequency.setValueAtTime(150, now);
+                oscLow.frequency.exponentialRampToValueAtTime(80, now + 0.05);
+                gainLow.gain.setValueAtTime(0.4, now);
+                gainLow.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
                 
-                const notice = document.querySelector('.audio-notice');
-                if (notice) notice.style.display = 'none';
-                isStarted = true;
+                oscLow.connect(gainLow);
+                gainLow.connect(audioCtx.destination);
+
+                // 2. 챙! 하는 스네어 쇳소리 (매우 높은 노이즈성 비프음)
+                const oscHigh = audioCtx.createOscillator();
+                const gainHigh = audioCtx.createGain();
+                oscHigh.type = 'sawtooth'; // 째지는 소리 유도
+                oscHigh.frequency.setValueAtTime(800, now); // 고주파
+                gainHigh.gain.setValueAtTime(0.2, now);
+                gainHigh.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+
+                oscHigh.connect(gainHigh);
+                gainHigh.connect(audioCtx.destination);
+
+                // 동시 재생 및 정지
+                oscLow.start(now);
+                oscHigh.start(now);
+                oscLow.stop(now + 0.08);
+                oscHigh.stop(now + 0.08);
+            } catch (e) {
+                console.log("드럼 오디오 처리 에러 보정");
             }
-        });
-    </script>
-</body>
-</html>
+        }
+
+        // 코맹맹이 유도형 튜닝 발음 적용 함수
+        function speakCuteVoice() {
+            if (!('speechSynthesis' in window)) return;
+            
+            try {
+                window.speechSynthesis.cancel(); 
+
+                const utterance = new SpeechSynthesisUtterance("엉우가아.. 이 어엄 므아아.. 헤헤헤");
+                utterance.lang = 'ko-KR';
+                utterance.pitch = 2.0;  // 최고 하이 피치
+                utterance.rate = 1.0;   
+                utterance.volume = 1.0;
+
+                // 음절 타이밍에 입 뻐끔
+                utterance.onboundary = function(event) {
+                    if (event.name === 'word' || event.name === 'char') {
+                        mouth.style.height = '26px';
+                        mouth.style.borderRadius = '30% 30% 50% 50%';
+                        monster.style.transform = 'scale(1.08)';
+                        
+                        setTimeout(() => {
+                            mouth.style.height = '6px';
+                            mouth.style.borderRadius = '50%';
+                            monster.style.transform = 'scale(1)';
+                        }, 140);
