@@ -2,208 +2,60 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>웹 벽돌깨기</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>글자 애니메이션</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; margin: 0; padding: 20px; }
-        canvas { background: #111; display: block; margin: 20px auto; border: 4px solid #fff; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
-        #info { font-size: 18px; margin-bottom: 10px; }
-        .score-board { display: flex; justify-content: center; gap: 40px; font-size: 20px; font-weight: bold; }
+        /* 까만 배경 설정 및 화면 중앙 정렬 */
+        body {
+            background-color: black;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 글자 스타일 설정 */
+        .text-container {
+            font-size: 5rem;
+            font-weight: bold;
+            color: white;
+            display: flex;
+            gap: 15px; /* 글자 사이 간격 */
+        }
+
+        /* 모든 글자를 처음에는 안 보이게 설정 */
+        .char {
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+
+        /* 순서대로 나타나도록 지연 시간(Delay) 설정 */
+        .char:nth-child(1) { animation-delay: 0.5s; } /* '니' */
+        .char:nth-child(2) { animation-delay: 1.2s; } /* '엄' */
+        .char:nth-child(3) { animation-delay: 1.9s; } /* '마' */
+
+        /* 서서히 나타나는 애니메이션 효과 */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px); /* 살짝 아래에서 위로 올라오는 효과 */
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
 
-    <h1>🧱 클래식 벽돌깨기 🧱</h1>
-    <div id="info">마우스를 움직이거나 좌우 방향키(◀ ▶)로 패들을 조종하세요.</div>
-    <div class="score-board">
-        <div>점수: <span id="score">0</span></div>
-        <div>목숨: <span id="lives">3</span></div>
+    <div class="text-container">
+        <span class="char">니</span>
+        <span class="char">엄</span>
+        <span class="char">마</span>
     </div>
-    
-    <canvas id="gameCanvas" width="480" height="320"></canvas>
 
-<script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-// 1. 게임 오브젝트 설정
-// 공 (Ball)
-let ballRadius = 8;
-let x = canvas.width / 2;
-let y = canvas.height - 30;
-let dx = 3;
-let dy = -3;
-
-// 패들 (Paddle)
-let paddleHeight = 10;
-let paddleWidth = 75;
-let paddleX = (canvas.width - paddleWidth) / 2;
-let rightPressed = false;
-let leftPressed = false;
-
-// 벽돌 (Bricks)
-let brickRowCount = 3;
-let brickColumnCount = 5;
-let brickWidth = 75;
-let brickHeight = 20;
-let brickPadding = 10;
-let brickOffsetTop = 30;
-let brickOffsetLeft = 30;
-
-let bricks = [];
-for (let c = 0; c < brickColumnCount; c++) {
-    bricks[c] = [];
-    for (let r = 0; r < brickRowCount; r++) {
-        bricks[c][r] = { x: 0, y: 0, status: 1 };
-    }
-}
-
-// 점수 및 목숨
-let score = 0;
-let lives = 3;
-let gameOver = false;
-
-// 2. 이벤트 리스너 (키보드 및 마우스 제어)
-document.addEventListener("keydown", keyDownHandler, false);
-document.addEventListener("keyup", keyUpHandler, false);
-document.addEventListener("mousemove", mouseMoveHandler, false);
-
-function keyDownHandler(e) {
-    if (e.key === "Right" || e.key === "ArrowRight") rightPressed = true;
-    else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = true;
-}
-
-function keyUpHandler(e) {
-    if (e.key === "Right" || e.key === "ArrowRight") rightPressed = false;
-    else if (e.key === "Left" || e.key === "ArrowLeft") leftPressed = false;
-}
-
-function mouseMoveHandler(e) {
-    let relativeX = e.clientX - canvas.offsetLeft;
-    if (relativeX > 0 && relativeX < canvas.width) {
-        paddleX = relativeX - paddleWidth / 2;
-    }
-}
-
-// 3. 충돌 감지 함수
-function collisionDetection() {
-    for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-            let b = bricks[c][r];
-            if (b.status === 1) {
-                // 공이 벽돌 범위 안에 들어왔을 때
-                if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
-                    dy = -dy;
-                    b.status = 0; // 벽돌 깨짐
-                    score++;
-                    document.getElementById("score").innerText = score;
-                    
-                    // 모든 벽돌을 다 깼을 때 승리
-                    if (score === brickRowCount * brickColumnCount) {
-                        alert("🎉 축하합니다! 모든 벽돌을 깨뜨려 승리하셨습니다! 🎉");
-                        document.location.reload();
-                        gameOver = true;
-                    }
-                }
-            }
-        }
-    }
-}
-
-// 4. 화면 그리기 기능들
-function drawBall() {
-    ctx.beginPath();
-    ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
-    ctx.fillStyle = "#0095DD";
-    ctx.fill();
-    ctx.closePath();
-}
-
-function drawPaddle() {
-    ctx.beginPath();
-    ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
-    ctx.fillStyle = "#0095DD";
-    ctx.fill();
-    ctx.closePath();
-}
-
-function drawBricks() {
-    for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-            if (bricks[c][r].status === 1) {
-                let brickX = (c * (brickWidth + brickPadding)) + brickOffsetLeft;
-                let brickY = (r * (brickHeight + brickPadding)) + brickOffsetTop;
-                bricks[c][r].x = brickX;
-                bricks[c][r].y = brickY;
-                ctx.beginPath();
-                ctx.rect(brickX, brickY, brickWidth, brickHeight);
-                // 줄별로 다른 색상 부여
-                ctx.fillStyle = r === 0 ? "#ff4757" : r === 1 ? "#ffa502" : "#2ed573";
-                ctx.fill();
-                ctx.closePath();
-            }
-        }
-    }
-}
-
-// 5. 메인 게임 루프 함수
-function draw() {
-    if (gameOver) return;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // 이전 프레임 지우기
-    drawBricks();
-    drawBall();
-    drawPaddle();
-    collisionDetection();
-
-    // 벽 충돌 감지 (좌/우)
-    if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
-        dx = -dx;
-    }
-    // 벽 충돌 감지 (위)
-    if (y + dy < ballRadius) {
-        dy = -dy;
-    } 
-    // 바닥 충돌 감지
-    else if (y + dy > canvas.height - ballRadius) {
-        // 패들에 튕겼을 때
-        if (x > paddleX && x < paddleX + paddleWidth) {
-            dy = -dy;
-        } 
-        // 패들을 놓쳐서 바닥에 닿았을 때
-        else {
-            lives--;
-            document.getElementById("lives").innerText = lives;
-            if (!lives) {
-                alert("💥 게임 오버! 기회를 모두 잃었습니다. 💥");
-                document.location.reload();
-                gameOver = true;
-            } else {
-                // 공 위치 및 속도 초기화
-                x = canvas.width / 2;
-                y = canvas.height - 30;
-                dx = 3;
-                dy = -3;
-                paddleX = (canvas.width - paddleWidth) / 2;
-            }
-        }
-    }
-
-    // 패들 키보드 이동 제어
-    if (rightPressed && paddleX < canvas.width - paddleWidth) {
-        paddleX += 5;
-    } else if (leftPressed && paddleX > 0) {
-        paddleX -= 5;
-    }
-
-    // 공 이동
-    x += dx;
-    y += dy;
-
-    requestAnimationFrame(draw);
-}
-
-// 게임 시작
-draw();
-</script>
 </body>
 </html>
