@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>글자 및 캐릭터 애니메이션</title>
+    <title>글자, 캐릭터 및 드럼 졸라맨 애니메이션</title>
     <style>
         /* 까만 배경 및 중앙 정렬 */
         body {
@@ -16,6 +16,17 @@
             overflow: hidden;
             font-family: sans-serif;
             position: relative;
+        }
+
+        /* [안내 문구] 오디오 재생용 */
+        .audio-notice {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #555;
+            font-size: 0.9rem;
+            pointer-events: none;
         }
 
         /* 전체 글자 컨테이너 */
@@ -33,7 +44,6 @@
             animation: fadeInOut 5s infinite;
         }
 
-        /* 띄어쓰기 글자는 애니메이션 효과 없이 공간만 차지 */
         .char.space {
             animation: none;
             opacity: 1;
@@ -41,16 +51,14 @@
         }
 
         /* 각 글자가 나타나는 지연 시간(Delay) 설정 */
-        .char:nth-child(1) { animation-delay: 0.0s; } /* 성 */
-        .char:nth-child(2) { animation-delay: 0.4s; } /* 욱 */
-        .char:nth-child(3) { animation-delay: 0.8s; } /* 아 */
-        .char:nth-child(4) { animation-delay: 1.2s; } /* . */
-        /* 5번은 띄어쓰기 공간 */
-        .char:nth-child(6) { animation-delay: 1.6s; } /* 니 */
-        .char:nth-child(7) { animation-delay: 2.0s; } /* 엄 */
-        .char:nth-child(8) { animation-delay: 2.4s; } /* 마 */
+        .char:nth-child(1) { animation-delay: 0.0s; }
+        .char:nth-child(2) { animation-delay: 0.4s; }
+        .char:nth-child(3) { animation-delay: 0.8s; }
+        .char:nth-child(4) { animation-delay: 1.2s; }
+        .char:nth-child(6) { animation-delay: 1.6s; }
+        .char:nth-child(7) { animation-delay: 2.0s; }
+        .char:nth-child(8) { animation-delay: 2.4s; }
 
-        /* 글자 자막 애니메이션 */
         @keyframes fadeInOut {
             0% { opacity: 0; transform: translateY(10px); }
             10% { opacity: 1; transform: translateY(0); }
@@ -58,20 +66,17 @@
             80%, 100% { opacity: 0; transform: translateY(-10px); }
         }
 
-        /* [캐릭터 관련 스타일] 왼쪽 아래 구석에 배치 */
+        /* [왼쪽 아래] 못생긴 점박이 캐릭터 */
         .monster {
             position: absolute;
             left: 40px;
             bottom: 40px;
             width: 120px;
             height: 120px;
-            background-color: #7fa99b; /* 못생긴 올리브 그린색 몸통 */
-            border-radius: 50%; /* 동그란 몸 */
+            background-color: #7fa99b;
+            border-radius: 50%;
             border: 4px solid #555;
-            box-shadow: inset -10px -10px 0px rgba(0,0,0,0.1);
         }
-
-        /* 못생긴 비대칭 눈 */
         .eye {
             position: absolute;
             background-color: white;
@@ -85,54 +90,117 @@
             border-radius: 50%;
             width: 6px;
             height: 6px;
-            top: 30%;
-            left: 30%;
+            top: 30%; left: 30%;
         }
-        .eye.left {
-            width: 24px;
-            height: 28px;
-            top: 25px;
-            left: 25px;
-        }
-        .eye.right {
-            width: 18px;
-            height: 20px;
-            top: 28px;
-            left: 65px; /* 짝눈 효과 */
-        }
-
-        /* 점박이 무늬들 */
-        .spot {
-            position: absolute;
-            background-color: #5d8276;
-            border-radius: 50%;
-        }
+        .eye.left { width: 24px; height: 28px; top: 25px; left: 25px; }
+        .eye.right { width: 18px; height: 20px; top: 28px; left: 65px; }
+        .spot { position: absolute; background-color: #5d8276; border-radius: 50%; }
         .spot1 { width: 14px; height: 10px; top: 15px; left: 50px; }
         .spot2 { width: 10px; height: 14px; top: 70px; left: 20px; }
         .spot3 { width: 16px; height: 12px; top: 50px; right: 15px; }
-
-        /* 글자 타이밍에 맞춰 움직이는 입 */
         .mouth {
             position: absolute;
             background-color: #551a1a;
             border: 3px solid #333;
             border-radius: 50%;
-            left: 35px;
-            top: 60px;
-            width: 40px;
-            height: 10px; /* 기본은 닫힌 상태 */
+            left: 35px; top: 60px;
+            width: 40px; height: 10px;
             animation: talk 5s infinite;
         }
-
-        /* 글자가 하나씩 나올 때마다(0.0초 ~ 2.8초 사이) 입을 열고 닫음 */
         @keyframes talk {
-            0%, 7.9%, 15.9%, 23.9%, 31.9%, 39.9%, 47.9%, 56% { height: 6px; border-radius: 50%; } /* 다물기 */
-            4%, 12%, 20%, 28%, 36%, 44%, 52% { height: 25px; border-radius: 30% 30% 50% 50%; } /* 벌리기 */
-            60%, 100% { height: 6px; border-radius: 50%; } /* 자막 멈춘 동안은 다물기 */
+            0%, 7.9%, 15.9%, 23.9%, 31.9%, 39.9%, 47.9%, 56% { height: 6px; border-radius: 50%; }
+            4%, 12%, 20%, 28%, 36%, 44%, 52% { height: 25px; border-radius: 30% 30% 50% 50%; }
+            60%, 100% { height: 6px; border-radius: 50%; }
+        }
+
+        /* [오른쪽 위] 졸라맨 + 드럼 컨테이너 */
+        .drummer-container {
+            position: absolute;
+            right: 40px;
+            top: 40px;
+            width: 150px;
+            height: 180px;
+        }
+
+        /* 졸라맨 그래픽 (선으로 구현) */
+        .stickman {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        /* 머리 */
+        .head {
+            position: absolute;
+            width: 30px; height: 30px;
+            border: 3px solid white;
+            border-radius: 50%;
+            left: 60px; top: 20px;
+        }
+        /* 몸통 */
+        .body-line {
+            position: absolute;
+            width: 3px; height: 50px;
+            background-color: white;
+            left: 74px; top: 53px;
+        }
+        /* 다리 */
+        .leg {
+            position: absolute;
+            width: 3px; height: 40px;
+            background-color: white;
+            top: 100px;
+        }
+        .leg.left { left: 64px; transform: rotate(15deg); }
+        .leg.right { left: 84px; transform: rotate(-15deg); }
+
+        /* 팔 (60비트/BPM = 1초에 한 번 내려치기 애니메이션) */
+        .arm {
+            position: absolute;
+            width: 3px; height: 35px;
+            background-color: white;
+            top: 55px;
+            transform-origin: top center;
+            animation: drumHit 1s infinite ease-in-out;
+        }
+        .arm.left {
+            left: 74px;
+            transform: rotate(45deg);
+        }
+        /* 양팔이 번갈아가며 치도록 약간의 차이를 둠 */
+        .arm.right {
+            left: 74px;
+            transform: rotate(-45deg);
+            animation-delay: 0.5s; 
+        }
+
+        /* 스네어 드럼통 */
+        .drum {
+            position: absolute;
+            width: 60px; height: 35px;
+            background-color: #333;
+            border: 3px solid white;
+            border-radius: 4px;
+            left: 45px; top: 85px;
+            box-sizing: border-box;
+        }
+        /* 드럼 윗면 피 */
+        .drum::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 6px;
+            background-color: #ddd;
+        }
+
+        /* 졸라맨 팔 타격 애니메이션 (1초 주기 = 60 BPM) */
+        @keyframes drumHit {
+            0%, 100% { transform: rotate(60deg); }
+            30% { transform: rotate(15deg); } /* 드럼을 때리는 시점 */
         }
     </style>
 </head>
 <body>
+
+    <div class="audio-notice">화면을 클릭하면 스네어 드럼 소리가 납니다!</div>
 
     <!-- 자막 영역 -->
     <div class="text-container">
@@ -146,7 +214,7 @@
         <span class="char">마</span>
     </div>
 
-    <!-- 못생긴 점박이 캐릭터 영역 -->
+    <!-- 못생긴 점박이 캐릭터 -->
     <div class="monster">
         <div class="spot spot1"></div>
         <div class="spot spot2"></div>
@@ -156,5 +224,92 @@
         <div class="mouth"></div>
     </div>
 
+    <!-- 오른쪽 상단 드럼 치는 졸라맨 -->
+    <div class="drummer-container">
+        <div class="stickman">
+            <div class="head"></div>
+            <div class="body-line"></div>
+            <div class="arm left"></div>
+            <div class="arm right"></div>
+            <div class="leg left"></div>
+            <div class="leg right"></div>
+            <div class="drum"></div>
+        </div>
+    </div>
+
+    <script>
+        // 외부 오디오 파일 없이 Web Audio API로 리얼한 스네어 드럼 소리를 합성하는 코드
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSnare() {
+            if (!audioCtx) return;
+            
+            // 1. 스네어의 '착'하는 노이즈(백색소음) 성분 생성
+            const bufferSize = audioCtx.sampleRate * 0.2; // 0.2초 지속
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'highpass';
+            noiseFilter.frequency.value = 1000; // 고음역 통과로 스네어 질감 표현
+            noise.connect(noiseFilter);
+
+            const noiseEnvelope = audioCtx.createGain();
+            noiseFilter.connect(noiseEnvelope);
+            noiseEnvelope.connect(audioCtx.destination);
+
+            // 2. 스네어의 몸통 둥둥거리는 '오실레이터' 성분 생성
+            const oscillator = audioCtx.createOscillator();
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(180, audioCtx.currentTime);
+
+            const oscEnvelope = audioCtx.createGain();
+            oscillator.connect(oscEnvelope);
+            oscEnvelope.connect(audioCtx.destination);
+
+            // 볼륨 엔벨로프 조절 (타격 후 빠르게 줄어들게 만듦)
+            noiseEnvelope.gain.setValueAtTime(0.7, audioCtx.currentTime);
+            noiseEnvelope.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+
+            oscEnvelope.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            oscEnvelope.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            // 재생 및 정지
+            noise.start();
+            oscillator.start();
+            noise.stop(audioCtx.currentTime + 0.2);
+            oscillator.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // 60 BPM 타이밍에 맞춰 사운드 재생 제어 (왼팔 0.3초, 오른팔 0.8초 타격 시점 싱크)
+        function startDrumLoop() {
+            setInterval(() => {
+                playSnare();
+            }, 500); // 0.5초마다 한 대씩 (왼손/오른손 번갈아가며 60 BPM 완성)
+        }
+
+        // 브라우저 정책 해결을 위한 클릭 이벤트 리스너
+        let started = false;
+        window.addEventListener('click', () => {
+            if (!started) {
+                initAudio();
+                startDrumLoop();
+                document.querySelector('.audio-notice').style.display = 'none';
+                started = true;
+            }
+        });
+    </script>
 </body>
 </html>
